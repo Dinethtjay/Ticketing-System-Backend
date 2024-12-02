@@ -56,7 +56,7 @@ public class TicketController {
         int numCustomers = configuration.getNumCustomers();
 
         try {
-            TicketPool ticketPool = new TicketPool(totalTickets, maxTicketCapacity);
+            this.ticketPool = new TicketPool(totalTickets, maxTicketCapacity);  // Initialize ticket pool
 
             // Create and start Vendor threads
             for (int i = 0; i < numVendors; i++) {
@@ -78,6 +78,7 @@ public class TicketController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to start ticketing system: " + e.getMessage());
         }
     }
+
 
 
     @PostMapping("/stop")
@@ -127,12 +128,10 @@ public class TicketController {
 
     @GetMapping("/count")
     public ResponseEntity<Integer> getTicketCount() {
-        // Assuming ticketPool is a class-level variable initialized in the system
         if (ticketPool == null) {
-            return ResponseEntity.status(400).body(0); // Return 0 if the ticket pool is not initialized
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(0); // Return 0 instead of a 400 status.
         }
-        int ticketCount = ticketPool.getTicketCount();
-        return ResponseEntity.ok(ticketCount);
+        return ResponseEntity.ok(ticketPool.getTicketCount());
     }
 
 }

@@ -52,6 +52,7 @@ public class TicketPool {
     }
 
     public synchronized int getTicketCount() {
+//        System.out.println("Getting ticket count: " + tickets.size());
         return tickets.size();
     }
 }
