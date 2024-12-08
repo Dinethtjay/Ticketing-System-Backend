@@ -13,7 +13,6 @@ import java.util.Optional;
 @Service
 public class ConfigurationService {
 
-    @Autowired
     private final ConfigurationRepository configurationRepository;
 
     @Autowired
@@ -22,16 +21,26 @@ public class ConfigurationService {
     }
 
     public Configuration saveConfiguration(Configuration configuration) {
-//        return configurationRepository.save(configuration);
-        try {
+        Optional<Configuration> existingConfig = configurationRepository.findTopByOrderByIdDesc();
+
+        if (existingConfig.isPresent()) {
+            Configuration configToUpdate = existingConfig.get();
+            // Update the existing configuration with new values
+            configToUpdate.setTotalTickets(configuration.getTotalTickets());
+            configToUpdate.setTicketReleaseRate(configuration.getTicketReleaseRate());
+            configToUpdate.setCustomerRetrievalRate(configuration.getCustomerRetrievalRate());
+            configToUpdate.setMaxTicketCapacity(configuration.getMaxTicketCapacity());
+            configToUpdate.setNumVendors(configuration.getNumVendors());
+            configToUpdate.setNumCustomers(configuration.getNumCustomers());
+
+            return configurationRepository.save(configToUpdate);
+        } else {
+            // Save the configuration as a new record since no existing record was found
             return configurationRepository.save(configuration);
-        } catch (OptimisticLockException | StaleObjectStateException e) {
-            throw new ConcurrentUpdateException("Configuration was updated by another transaction. Please try again.",e);
         }
     }
 
     public Optional<Configuration> loadLastConfiguration() {
-
         return configurationRepository.findTopByOrderByIdDesc();
     }
 }

@@ -2,22 +2,15 @@ package com.iit.TicketingSystem.controller;
 
 import com.iit.TicketingSystem.model.Configuration;
 import com.iit.TicketingSystem.service.ConfigurationService;
-import com.iit.TicketingSystem.service.Customer;
 import com.iit.TicketingSystem.service.TicketPool;
-import com.iit.TicketingSystem.service.Vendor;
 import com.iit.TicketingSystem.websocket.LogWebSocketHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.scheduling.annotation.Scheduled;
+
 import org.springframework.web.bind.annotation.*;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api")
@@ -29,68 +22,91 @@ public class TicketController {
     @Autowired
     private ConfigurationService configurationService;
 
-    private static final String LOG_FILE = "ticketing_logs.txt";
+    private TicketPool ticketPool;  // Declare ticketPool at the class level
+    private Configuration lastSavedConfiguration; // Track the last saved configuration
 
-    private TicketPool ticketPool;
-    private List<Thread> vendorThreads = new ArrayList<>();
-    private List<Thread> customerThreads = new ArrayList<>();
 
     @PostMapping("/start")
-    public ResponseEntity<String> startTicketingSystem(@RequestBody Configuration configuration) {
+    public ResponseEntity<String> startTicketingSystem() {
+        if (ticketPool == null) {
+            // If ticketPool is not initialized yet, initialize with configuration
+            if (lastSavedConfiguration == null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body("Cannot start the system. Provide new configurations or load a previous one first.");
+            }
 
-        try {
-            this.ticketPool = new TicketPool(configuration.getTotalTickets(), configuration.getMaxTicketCapacity());
-            ticketPool.startTicketingSystem(
-                    configuration.getNumVendors(),
-                    configuration.getNumCustomers(),
-                    configuration.getTicketReleaseRate(),
-                    configuration.getCustomerRetrievalRate(),
-                    logWebSocketHandler
-            );
-            return ResponseEntity.ok("Ticketing system started with " + configuration.getNumVendors() + " vendors and " + configuration.getNumCustomers() + " customers.");
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to start ticketing system: " + e.getMessage());
+            // Load previous configuration if no new configuration is provided
+            if (lastSavedConfiguration != null) {
+                ticketPool = new TicketPool(lastSavedConfiguration.getTotalTickets(),
+                        lastSavedConfiguration.getMaxTicketCapacity(),
+                        logWebSocketHandler);
+            } else {
+                // Initialize a new TicketPool with the provided configuration
+                ticketPool = new TicketPool(lastSavedConfiguration.getTotalTickets(),
+                        lastSavedConfiguration.getMaxTicketCapacity(),
+                        logWebSocketHandler);
+            }
         }
+
+        // If the system was stopped, restart threads
+        if (!ticketPool.isRunning()) {
+            ticketPool.startTicketingSystem(
+                    lastSavedConfiguration.getNumVendors(),
+                    lastSavedConfiguration.getNumCustomers(),
+                    lastSavedConfiguration.getTicketReleaseRate(),
+                    lastSavedConfiguration.getCustomerRetrievalRate()
+            );
+        }
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body("Ticketing system is already running.");
     }
-
-
 
     @PostMapping("/stop")
     public ResponseEntity<String> stopTicketingSystem() {
-        if (ticketPool != null) {
-            ticketPool.stopTicketingSystem();
+        if (ticketPool == null || !ticketPool.isRunning()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("Ticketing system is not currently running.");
         }
-        return ResponseEntity.ok("Ticketing system stopped");
+
+        // Stop the threads but keep the ticketPool object
+        ticketPool.stopTicketingSystem();
+
+        // Only update the remaining tickets in the last saved configuration
+        if (lastSavedConfiguration != null) {
+            lastSavedConfiguration.setTotalTickets(ticketPool.getTicketCount());
+        }
+
+        return ResponseEntity.ok("Ticketing system stopped. Tickets remaining: " + ticketPool.getTicketCount());
     }
 
     @PostMapping("/config")
-    public ResponseEntity<?> saveConfiguration(@RequestBody Configuration configuration) {
-        configurationService.saveConfiguration(configuration);
-        return ResponseEntity.ok("Configuration saved successfully");
+    public ResponseEntity<String> saveConfiguration(@RequestBody Configuration configuration) {
+        try {
+            lastSavedConfiguration = configuration; // Save the new configuration
+            configurationService.saveConfiguration(configuration); // Save to the database
+            return ResponseEntity.ok("Configuration saved successfully.");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to save configuration: " + e.getMessage());
+        }
     }
 
     @GetMapping("/config")
     public ResponseEntity<?> getLastConfiguration() {
-        return configurationService.loadLastConfiguration()
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.status(404).body(new Configuration()));
+        Optional<Configuration> configuration = configurationService.loadLastConfiguration();
+
+        if (configuration.isPresent()) {
+            lastSavedConfiguration = configuration.get(); // Load and set the last saved configuration
+            return ResponseEntity.ok(configuration.get());
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No previous configuration found.");
+        }
     }
+
 
     @PostMapping("/logs")
     public ResponseEntity<String> addLog(@RequestBody String log) {
         logWebSocketHandler.addLog(log);
         return ResponseEntity.ok("Log added and broadcasted.");
-    }
-
-    @GetMapping("/logs/file")
-    public String getLogFileContent() {
-        Path logFilePath = Paths.get(LOG_FILE);
-        try {
-            return Files.readString(logFilePath);
-        } catch (IOException e) {
-            return "Error reading log file: " + e.getMessage();
-        }
     }
 
     @GetMapping("/count")
@@ -100,5 +116,5 @@ public class TicketController {
         }
         return ResponseEntity.ok(ticketPool.getTicketCount());
     }
-
 }
+

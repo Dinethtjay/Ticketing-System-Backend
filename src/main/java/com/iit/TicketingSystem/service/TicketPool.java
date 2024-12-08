@@ -11,20 +11,23 @@ public class TicketPool {
     private final int maxCapacity;
     private final List<Thread> vendorThreads = new ArrayList<>();
     private final List<Thread> customerThreads = new ArrayList<>();
+    private final LogWebSocketHandler logWebSocketHandler;
+    private boolean running = false; // Track if the system is active
 
-
-    public TicketPool(int initialTickets, int maxCapacity) {
+    public TicketPool(int initialTickets, int maxCapacity, LogWebSocketHandler logWebSocketHandler) {
         this.tickets = Collections.synchronizedList(new ArrayList<>());
         this.maxCapacity = maxCapacity;
+        this.logWebSocketHandler = logWebSocketHandler;
         for (int i = 0; i < initialTickets; i++) {
             tickets.add("Ticket: " + (i + 1));
         }
     }
 
-    public synchronized void addTickets(int count) {
+    public synchronized void addTickets(int count, String threadName) {
         while (tickets.size() + count > maxCapacity) {
             try {
-                System.out.println(Thread.currentThread().getName() + ": Max capacity reached. Waiting to add tickets...");
+                logWebSocketHandler.addLog(threadName + ": Max capacity reached. Waiting to add tickets...");
+                System.out.println(threadName + ": Max capacity reached. Waiting to add tickets...");
                 wait();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -34,15 +37,16 @@ public class TicketPool {
         for (int i = 0; i < count; i++) {
             tickets.add("Ticket: " + (tickets.size() + 1));
         }
-
-        System.out.println(Thread.currentThread().getName() + " added " + count + " tickets. Total ticket count: " + tickets.size());
+        logWebSocketHandler.addLog(threadName + " added " + count + " tickets. Total ticket count: " + tickets.size());
+        System.out.println(threadName + " added " + count + " tickets. Total ticket count: " + tickets.size());
         notifyAll();
     }
 
-    public synchronized void removeTickets(int count) {
+    public synchronized void removeTickets(int count, String threadName) {
         while (tickets.isEmpty()) {
             try {
-                System.out.println(Thread.currentThread().getName() + ": No tickets available. Waiting...");
+                logWebSocketHandler.addLog(threadName + ": No tickets available. Waiting...");
+                System.out.println(threadName + ": No tickets available. Waiting...");
                 wait();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -52,7 +56,8 @@ public class TicketPool {
         for (int i = 0; i < count && !tickets.isEmpty(); i++) {
             tickets.remove(0);
         }
-        System.out.println(Thread.currentThread().getName() + " purchased " + count + " ticket(s). Remaining tickets: " + tickets.size());
+        logWebSocketHandler.addLog(threadName + " purchased " + count + " ticket(s). Remaining tickets: " + tickets.size());
+        System.out.println(threadName + " purchased " + count + " ticket(s). Remaining tickets: " + tickets.size());
         notifyAll();
     }
 
@@ -60,21 +65,53 @@ public class TicketPool {
         return tickets.size();
     }
 
-    public void startTicketingSystem(int numVendors, int numCustomers, int ticketReleaseRate, int customerRetrievalRate, LogWebSocketHandler logWebSocketHandler) {
+    public synchronized boolean isRunning() {
+        return running;
+    }
+
+    public void startTicketingSystem(int numVendors, int numCustomers, int ticketReleaseRate, int customerRetrievalRate) {
+        if (running) {
+            throw new IllegalStateException("Ticketing system is already running.");
+        }
+        running = true;
+
+        // Start vendor threads
         for (int i = 0; i < numVendors; i++) {
-            Thread vendorThread = new Thread(new Vendor(this, ticketReleaseRate, logWebSocketHandler), "Vendor " + (i + 1));
+            Thread vendorThread = new Thread(() -> {
+                try {
+                    while (running) {
+                        addTickets(1, Thread.currentThread().getName());
+                        Thread.sleep(ticketReleaseRate);
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }, "Vendor " + (i + 1));
             vendorThreads.add(vendorThread);
             vendorThread.start();
         }
 
+        // Start customer threads
         for (int i = 0; i < numCustomers; i++) {
-            Thread customerThread = new Thread(new Customer(this, customerRetrievalRate, logWebSocketHandler), "Customer " + (i + 1));
+            Thread customerThread = new Thread(() -> {
+                try {
+                    while (running) {
+                        removeTickets(1, Thread.currentThread().getName());
+                        Thread.sleep(customerRetrievalRate);
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }, "Customer " + (i + 1));
             customerThreads.add(customerThread);
             customerThread.start();
         }
     }
 
     public void stopTicketingSystem() {
+        running = false;
+
+        // Interrupt and clear threads
         for (Thread vendorThread : vendorThreads) {
             vendorThread.interrupt();
         }
@@ -85,6 +122,8 @@ public class TicketPool {
         }
         customerThreads.clear();
 
+        logWebSocketHandler.addLog("Ticketing system stopped.");
         System.out.println("Ticketing system stopped.");
     }
 }
+
