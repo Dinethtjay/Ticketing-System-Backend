@@ -37,8 +37,8 @@ public class TicketPool {
         for (int i = 0; i < count; i++) {
             tickets.add("Ticket: " + (tickets.size() + 1));
         }
-        logWebSocketHandler.addLog(threadName + " added " + count + " tickets. Total ticket count: " + tickets.size());
-        System.out.println(threadName + " added " + count + " tickets. Total ticket count: " + tickets.size());
+        logWebSocketHandler.addLog(threadName + " added a ticket. Total ticket count: " + tickets.size());
+        System.out.println(threadName + " added a ticket. Total ticket count: " + tickets.size());
         notifyAll();
     }
 
@@ -56,8 +56,8 @@ public class TicketPool {
         for (int i = 0; i < count && !tickets.isEmpty(); i++) {
             tickets.remove(0);
         }
-        logWebSocketHandler.addLog(threadName + " purchased " + count + " ticket(s). Remaining tickets: " + tickets.size());
-        System.out.println(threadName + " purchased " + count + " ticket(s). Remaining tickets: " + tickets.size());
+        logWebSocketHandler.addLog(threadName + " purchased a ticket. Remaining tickets: " + tickets.size());
+        System.out.println(threadName + " purchased a ticket. Remaining tickets: " + tickets.size());
         notifyAll();
     }
 

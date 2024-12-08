@@ -25,41 +25,36 @@ public class TicketController {
     private TicketPool ticketPool;  // Declare ticketPool at the class level
     private Configuration lastSavedConfiguration; // Track the last saved configuration
 
-
-    @PostMapping("/start")
-    public ResponseEntity<String> startTicketingSystem() {
-        if (ticketPool == null) {
-            // If ticketPool is not initialized yet, initialize with configuration
-            if (lastSavedConfiguration == null) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body("Cannot start the system. Provide new configurations or load a previous one first.");
-            }
-
-            // Load previous configuration if no new configuration is provided
-            if (lastSavedConfiguration != null) {
-                ticketPool = new TicketPool(lastSavedConfiguration.getTotalTickets(),
-                        lastSavedConfiguration.getMaxTicketCapacity(),
-                        logWebSocketHandler);
-            } else {
-                // Initialize a new TicketPool with the provided configuration
-                ticketPool = new TicketPool(lastSavedConfiguration.getTotalTickets(),
-                        lastSavedConfiguration.getMaxTicketCapacity(),
-                        logWebSocketHandler);
-            }
+@PostMapping("/start")
+public ResponseEntity<String> startTicketingSystem() {
+    if (ticketPool == null) {
+        if (lastSavedConfiguration == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("Cannot start the system. Provide new configurations or load a previous one first.");
         }
 
-        // If the system was stopped, restart threads
-        if (!ticketPool.isRunning()) {
-            ticketPool.startTicketingSystem(
-                    lastSavedConfiguration.getNumVendors(),
-                    lastSavedConfiguration.getNumCustomers(),
-                    lastSavedConfiguration.getTicketReleaseRate(),
-                    lastSavedConfiguration.getCustomerRetrievalRate()
-            );
-        }
-
-        return ResponseEntity.status(HttpStatus.CONFLICT).body("Ticketing system is already running.");
+        // Initialize a new TicketPool with the saved configuration
+        ticketPool = new TicketPool(
+                lastSavedConfiguration.getTotalTickets(),
+                lastSavedConfiguration.getMaxTicketCapacity(),
+                logWebSocketHandler
+        );
     }
+
+    // Start the system if it is not already running
+    if (!ticketPool.isRunning()) {
+        ticketPool.startTicketingSystem(
+                lastSavedConfiguration.getNumVendors(),
+                lastSavedConfiguration.getNumCustomers(),
+                lastSavedConfiguration.getTicketReleaseRate(),
+                lastSavedConfiguration.getCustomerRetrievalRate()
+        );
+        return ResponseEntity.ok("Ticketing system started successfully.");
+    }
+
+    return ResponseEntity.status(HttpStatus.CONFLICT).body("Ticketing system is already running.");
+}
+
 
     @PostMapping("/stop")
     public ResponseEntity<String> stopTicketingSystem() {

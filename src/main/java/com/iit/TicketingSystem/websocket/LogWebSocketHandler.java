@@ -56,15 +56,11 @@ public class LogWebSocketHandler extends TextWebSocketHandler {
         System.out.println("Client connected: " + session.getId());
     }
 
-//    @Override
-//    public void afterConnectionClosed(WebSocketSession session, org.springframework.web.socket.CloseStatus status) {
-//        sessions.remove(session);
-//        System.out.println("Client disconnected: " + session.getId());
-//    }
 
     @Override
     public synchronized void handleTextMessage(WebSocketSession session, TextMessage message) {
         // Optionally handle incoming client messages
     }
+
 }
 
