@@ -37,6 +37,7 @@ public class LogWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
+    //Broadcasting new logs to websocket
     private void broadcastLog(String log) {
         TextMessage message = new TextMessage(log);
         for (WebSocketSession session : sessions) {

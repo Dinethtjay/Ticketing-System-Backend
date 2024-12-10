@@ -24,6 +24,7 @@ public class TicketPool {
     }
 
     public synchronized void addTickets(int count, String threadName) {
+        // Add tickets to the pool, ensuring the maximum capacity is not exceeded
         while (tickets.size() + count > maxCapacity) {
             try {
                 logWebSocketHandler.addLog(threadName + ": Max capacity reached. Waiting to add tickets...");
@@ -39,10 +40,11 @@ public class TicketPool {
         }
         logWebSocketHandler.addLog(threadName + " added a ticket. Total ticket count: " + tickets.size());
         System.out.println(threadName + " added a ticket. Total ticket count: " + tickets.size());
-        notifyAll();
+        notifyAll(); // Notify waiting threads
     }
 
     public synchronized void removeTickets(int count, String threadName) {
+        // Remove tickets from the pool, ensuring tickets are available
         while (tickets.isEmpty()) {
             try {
                 logWebSocketHandler.addLog(threadName + ": No tickets available. Waiting...");

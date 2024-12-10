@@ -9,6 +9,7 @@ public class Customer implements Runnable {
         this.customerRetrievalRate = customerRetrievalRate;
     }
 
+    //Customer thread behaviour
     @Override
     public void run() {
         try {

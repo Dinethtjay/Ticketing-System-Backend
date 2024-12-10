@@ -20,7 +20,7 @@ public class Configuration {
     private int numVendors;
     private int numCustomers;
 
-    // Getters and Setters
+    //Getters and Setters related to system configuration
 
     public Long getId() {
         return id;

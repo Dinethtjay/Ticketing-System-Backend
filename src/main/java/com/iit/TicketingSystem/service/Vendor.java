@@ -9,6 +9,7 @@ public class Vendor implements Runnable {
         this.releaseRate = releaseRate;
     }
 
+    //Vendor thread behaviour
     @Override
     public void run() {
         try {

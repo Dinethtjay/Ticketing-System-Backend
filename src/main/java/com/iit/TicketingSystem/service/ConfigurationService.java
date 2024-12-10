@@ -1,10 +1,7 @@
 package com.iit.TicketingSystem.service;
 
-import com.iit.TicketingSystem.exception.ConcurrentUpdateException;
 import com.iit.TicketingSystem.model.Configuration;
 import com.iit.TicketingSystem.repository.ConfigurationRepository;
-import jakarta.persistence.OptimisticLockException;
-import org.hibernate.StaleObjectStateException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -21,6 +18,7 @@ public class ConfigurationService {
     }
 
     public Configuration saveConfiguration(Configuration configuration) {
+        //Check if an existing configuration is present and update it; otherwise, create a new record
         Optional<Configuration> existingConfig = configurationRepository.findTopByOrderByIdDesc();
 
         if (existingConfig.isPresent()) {
@@ -40,6 +38,7 @@ public class ConfigurationService {
         }
     }
 
+    //finding and retrieve the last saved configuration from the database
     public Optional<Configuration> loadLastConfiguration() {
         return configurationRepository.findTopByOrderByIdDesc();
     }
