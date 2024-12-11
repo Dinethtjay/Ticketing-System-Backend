@@ -6,6 +6,9 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import org.springframework.stereotype.Component;
 
+/**
+ * Entity class representing the configuration of the ticketing system.
+ */
 @Component
 @Entity
 public class Configuration {

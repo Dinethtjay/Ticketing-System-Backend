@@ -12,6 +12,10 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+/**
+ * WebSocket handler for broadcasting log messages to connected clients.
+ * Handles adding logs, saving them to a file, and broadcasting them over WebSocket connections.
+ */
 @Component
 public class LogWebSocketHandler extends TextWebSocketHandler {
 
@@ -19,6 +23,11 @@ public class LogWebSocketHandler extends TextWebSocketHandler {
     private final List<String> logs = new LinkedList<>();
     private final List<WebSocketSession> sessions = new CopyOnWriteArrayList<>();
 
+    /**
+     * Adds a log message to the system and broadcasts it to connected clients.
+     *
+     * @param log the log message
+     */
     public synchronized void addLog(String log) {
         logs.add(log);
         if (logs.size() > 100) {
@@ -28,6 +37,11 @@ public class LogWebSocketHandler extends TextWebSocketHandler {
         broadcastLog(log);
     }
 
+    /**
+     * Saves a log message to a file.
+     *
+     * @param log the log message to save
+     */
     private void saveLogToFile(String log) {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(LOG_FILE, true))) {
             writer.write(log);
@@ -37,7 +51,11 @@ public class LogWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
-    //Broadcasting new logs to websocket
+    /**
+     * Broadcasts a log message to all connected WebSocket clients.
+     *
+     * @param log the log message to broadcast
+     */
     private void broadcastLog(String log) {
         TextMessage message = new TextMessage(log);
         for (WebSocketSession session : sessions) {
@@ -51,17 +69,17 @@ public class LogWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
+    /**
+     * Called when a new WebSocket connection is established. Adds the session to the list of connected clients.
+     *
+     * @param session the WebSocket session of the newly connected client
+     */
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
         sessions.add(session);
         System.out.println("Client connected: " + session.getId());
     }
 
-
-    @Override
-    public synchronized void handleTextMessage(WebSocketSession session, TextMessage message) {
-        // Optionally handle incoming client messages
-    }
 
 }
 

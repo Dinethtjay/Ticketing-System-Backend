@@ -30,45 +30,45 @@ public class TicketController {
     private Configuration lastSavedConfiguration;
 
     /**
-     * Starts the ticketing system based on the last saved configuration.
+     * Starts the ticketing system.
      *
-     * @return ResponseEntity with a success or error message.
+     * @return a {@link ResponseEntity} with a status message
      */
-@PostMapping("/start")
-public ResponseEntity<String> startTicketingSystem() {
-    // Checking whether TicketPool is initialized with a configuration before starting the system
-    if (ticketPool == null) {
-        if (lastSavedConfiguration == null) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body("Cannot start the system. Provide new configurations or load a previous one first.");
+    @PostMapping("/start")
+    public ResponseEntity<String> startTicketingSystem() {
+        // Checking whether TicketPool is initialized with a configuration before starting the system
+        if (ticketPool == null) {
+            if (lastSavedConfiguration == null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body("Cannot start the system. Provide new configurations or load a previous one first.");
+            }
+
+            //Initialize a new TicketPool with the saved configuration
+            ticketPool = new TicketPool(
+                    lastSavedConfiguration.getTotalTickets(),
+                    lastSavedConfiguration.getMaxTicketCapacity(),
+                    logWebSocketHandler
+            );
         }
 
-        //Initialize a new TicketPool with the saved configuration
-        ticketPool = new TicketPool(
-                lastSavedConfiguration.getTotalTickets(),
-                lastSavedConfiguration.getMaxTicketCapacity(),
-                logWebSocketHandler
-        );
-    }
+        //Start the system if it is not already running
+        if (!ticketPool.isRunning()) {
+            ticketPool.startTicketingSystem(
+                    lastSavedConfiguration.getNumVendors(),
+                    lastSavedConfiguration.getNumCustomers(),
+                    lastSavedConfiguration.getTicketReleaseRate(),
+                    lastSavedConfiguration.getCustomerRetrievalRate()
+            );
+            return ResponseEntity.ok("Ticketing system started successfully.");
+        }
 
-    //Start the system if it is not already running
-    if (!ticketPool.isRunning()) {
-        ticketPool.startTicketingSystem(
-                lastSavedConfiguration.getNumVendors(),
-                lastSavedConfiguration.getNumCustomers(),
-                lastSavedConfiguration.getTicketReleaseRate(),
-                lastSavedConfiguration.getCustomerRetrievalRate()
-        );
-        return ResponseEntity.ok("Ticketing system started successfully.");
+        return ResponseEntity.status(HttpStatus.CONFLICT).body("Ticketing system is already running.");
     }
-
-    return ResponseEntity.status(HttpStatus.CONFLICT).body("Ticketing system is already running.");
-}
 
     /**
-     * Stops the ticketing system and preserves the remaining tickets in the configuration.
+     * Stops the ticketing system.
      *
-     * @return ResponseEntity with a success or error message.
+     * @return a {@link ResponseEntity} with the remaining ticket count
      */
     @PostMapping("/stop")
     public ResponseEntity<String> stopTicketingSystem() {
@@ -91,8 +91,8 @@ public ResponseEntity<String> startTicketingSystem() {
     /**
      * Saves a new configuration for the ticketing system.
      *
-     * @param configuration The configuration to be saved.
-     * @return ResponseEntity with a success or error message.
+     * @param configuration the new {@link Configuration} to save
+     * @return a {@link ResponseEntity} with a status message
      */
     @PostMapping("/config")
     public ResponseEntity<String> saveConfiguration(@RequestBody Configuration configuration) {
@@ -110,7 +110,7 @@ public ResponseEntity<String> startTicketingSystem() {
     /**
      * Retrieves the last saved configuration.
      *
-     * @return ResponseEntity containing the last saved configuration or an error message.
+     * @return a {@link ResponseEntity} with the last configuration
      */
     @GetMapping("/config")
     public ResponseEntity<?> getLastConfiguration() {
@@ -125,10 +125,10 @@ public ResponseEntity<String> startTicketingSystem() {
     }
 
     /**
-     * Adds a log to the system and broadcasts it to connected WebSocket clients.
+     * Adds a log entry and broadcasts it to WebSocket clients.
      *
-     * @param log The log message to be added.
-     * @return ResponseEntity with a success message.
+     * @param log the log message to add
+     * @return a {@link ResponseEntity} with a status message
      */
     @PostMapping("/logs")
     public ResponseEntity<String> addLog(@RequestBody String log) {
@@ -138,9 +138,9 @@ public ResponseEntity<String> startTicketingSystem() {
     }
 
     /**
-     * Retrieves the current ticket count.
+     * Gets the current ticket count.
      *
-     * @return ResponseEntity with the current ticket count or an error message.
+     * @return a {@link ResponseEntity} with the ticket count
      */
     @GetMapping("/count")
     public ResponseEntity<Integer> getTicketCount() {
